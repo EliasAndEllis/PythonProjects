@@ -15,7 +15,7 @@ failed_image = "https://github.com/EliasAndEllis/shmy/blob/main/9ltiog.jpg?raw=t
 infant_image = "https://raw.githubusercontent.com/EliasAndEllis/shmy/refs/heads/main/9ltjhq.jpg"
 
 # Streamlit UI
-st.title("Game of Thrones Greeting")
+st.title("Greetings Earthling, this is my 1st project with Python")
 
 # Gender input
 gender = st.text_input("Are you male or female?", key="gender").lower()
