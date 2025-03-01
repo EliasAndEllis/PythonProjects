@@ -5,7 +5,7 @@ st.title("Welcome to Rock, Paper, Scissors!")
 
 choices = ["rock", "paper", "scissors"]
 
-# Initialize session state
+# Initialize session state variables
 if "player_choice" not in st.session_state:
     st.session_state.player_choice = None
 if "computer_choice" not in st.session_state:
@@ -44,8 +44,9 @@ if st.session_state.play_again:
         if play_again == "n":
             st.session_state.play_again = False
             st.write("Thanks for playing!")
-        else:
+        elif play_again == "y":
+            # Reset the session state variables
             st.session_state.player_choice = None
             st.session_state.computer_choice = None
             st.session_state.game_result = None
-            st.experimental_rerun()
+            st.session_state.play_again = True
