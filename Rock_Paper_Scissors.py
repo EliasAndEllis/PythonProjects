@@ -1,32 +1,34 @@
 import streamlit as st
 import random
 
-# Title of the game
-st.title("Rock, Paper, Scissors Game 🤖")
+st.title("Welcome to Rock, Paper, Scissors!")
 
-# Choices
 choices = ["rock", "paper", "scissors"]
 
-# Custom weights for computer choice
-weights = [0.4, 0.35, 0.25]
+# Game state
+if "play_again" not in st.session_state:
+    st.session_state.play_again = True
 
-# Player selection
-player_choice = st.radio("Choose your move:", choices)
+while st.session_state.play_again:
+    player_choice = st.selectbox("Enter your choice:", choices)
 
-# Play button
-if st.button("Play"):
-    computer_choice = random.choices(choices, weights=weights, k=1)[0]
-    st.write(f"🤖 The computer chose: **{computer_choice}**")
+    computer_choice = random.choices(choices, weights=[0.4, 0.35, 0.25], k=1)[0]
+    st.write(f"The computer chose **{computer_choice}**!")
 
-    # Determine winner
     if player_choice == computer_choice:
-        st.success("It's a tie! 😐")
+        st.write("🤝 It's a tie!")
     elif (player_choice == "rock" and computer_choice == "scissors") or \
          (player_choice == "paper" and computer_choice == "rock") or \
          (player_choice == "scissors" and computer_choice == "paper"):
-        st.success("🎉 You win!")
+        st.write("🎉 You win!")
     else:
-        st.error("😞 The computer won!")
+        st.write("😞 The computer won!")
 
-# Play Again button (Optional)
-st.button("Reset")
+    # Play again option
+    play_again = st.radio("Play again?", ["Yes", "No"])
+
+    if play_again == "No":
+        st.session_state.play_again = False
+        st.write("Thanks for playing! 🎮")
+    else:
+        st.experimental_rerun()
