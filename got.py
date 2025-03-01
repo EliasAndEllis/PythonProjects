@@ -18,7 +18,7 @@ failed_image = "https://github.com/EliasAndEllis/shmy/blob/main/9ltiog.jpg?raw=t
 infant_image = "https://raw.githubusercontent.com/EliasAndEllis/shmy/refs/heads/main/9ltjhq.jpg"
 
 # Streamlit UI Setup
-st.title("Greetings Earthling, this is my 1st project with Python")
+st.title("Greetings Earthling.....")
 
 # User Input Collection
 # Gender input
