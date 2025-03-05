@@ -40,25 +40,28 @@ user_history = st.session_state.user_history
 games = st.session_state.games
 wins = st.session_state.wins
 
-# Custom CSS
+# Custom CSS with updated styles
 st.markdown("""
     <style>
     .title {
-        font-size: 36px;
+        font-size: 79.2px;  /* 120% larger than 36px (36 * 2.2) */
         color: #FF6347;
         text-align: center;
         font-family: 'Arial', sans-serif;
     }
     .subtitle {
-        font-size: 20px;
-        color: #4682B4;
+        font-size: 36px;  /* 80% larger than 20px (20 * 1.8) */
+        color: #FFFFFF;   /* White */
         text-align: center;
         font-style: italic;
     }
     .result {
         font-size: 24px;
-        color: #32CD32;
+        color: #1DA1F2;   /* Twitter blue */
+        background-color: #AAB8C2;  /* Twitter grey */
         font-weight: bold;
+        padding: 5px;
+        border-radius: 5px;
     }
     .stats {
         font-size: 18px;
@@ -106,7 +109,7 @@ if st.session_state.play_again:
     # Process choice with a seamless loading effect
     if st.session_state.player_choice:
         with st.spinner("Processing your move..."):
-            time.sleep(1)  # 1-second delay for smooth transition
+            time.sleep(1)
             player_choice = st.session_state.player_choice
             user_history.append(player_choice)
             games += 1
@@ -131,9 +134,9 @@ if st.session_state.play_again:
             st.session_state.user_history = user_history
             st.session_state.games = games
             st.session_state.wins = wins
-            st.session_state.player_choice = None  # Reset for next round
+            st.session_state.player_choice = None
 
-            # Play again button
+            # Play again buttons
             st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
             if st.button("Play Again", key=f"play_again_{games}"):
                 st.session_state.play_again = True
