@@ -11,7 +11,7 @@ if 'wins' not in st.session_state:
     st.session_state.wins = {"user": 0, "computer": 0, "ties": 0}
 if 'play_again' not in st.session_state:
     st.session_state.play_again = True
-if 'player_choice' not_in st.session_state:
+if 'player_choice' not in st.session_state:  # Fixed typo: 'not_in' → 'not in'
     st.session_state.player_choice = None
 
 def get_counter_move(predicted_choice):
@@ -40,7 +40,7 @@ user_history = st.session_state.user_history
 games = st.session_state.games
 wins = st.session_state.wins
 
-# Custom CSS with updated styles
+# Custom CSS with your requested styles
 st.markdown("""
     <style>
     .title {
