@@ -27,7 +27,7 @@ def predict_user_choice(history):
     # If multiple choices tie for most frequent, pick one randomly
     return random.choice(most_frequent)
 
-# Initialize session state variables (necessary for Streamlit)
+# Initialize session state variables
 if 'user_history' not in st.session_state:
     st.session_state.user_history = []
 if 'computer_history' not in st.session_state:
@@ -45,17 +45,17 @@ if 'play_submitted' not in st.session_state:
 choices = ["rock", "paper", "scissors"]
 
 # Streamlit UI
-st.title("Adaptive Rock, Paper, Scissors")  # Replacing initial print
-st.write("I’ll learn your patterns and try to beat you!")  # Replacing initial print
+st.title("Adaptive Rock, Paper, Scissors")
+st.write("I’ll learn your patterns and try to beat you!")
 
 if not st.session_state.game_over:
-    # Get user input (replacing input with st.text_input)
-    player_choice = st.text_input("Enter your choice (rock, paper, scissors):", "").lower()
+    # Get user input
+    player_choice = st.text_input("Enter your choice (rock, paper, scissors):", "", key="player_choice").lower()
 
-    if st.button("Submit Choice"):  # Button to submit choice
+    if st.button("Submit Choice"):
         st.session_state.play_submitted = True
         if player_choice not in choices:
-            st.error("Invalid choice. Please select one of the 3 options.")  # Replacing print
+            st.error("Invalid choice. Please select one of the 3 options.")
         else:
             # Add to history
             st.session_state.user_history.append(player_choice)
@@ -65,19 +65,19 @@ if not st.session_state.game_over:
             predicted_choice = predict_user_choice(st.session_state.user_history)
             computer_choice = get_counter_move(predicted_choice)
             st.session_state.computer_history.append(computer_choice)
-            st.write("The computer chose " + computer_choice + " !")  # Replacing print
+            st.write("The computer chose " + computer_choice + " !")
 
             # Determine winner
             if player_choice == computer_choice:
-                st.write("It's a tie!")  # Replacing print
+                st.write("It's a tie!")
                 st.session_state.wins["ties"] += 1
             elif (player_choice == "rock" and computer_choice == "scissors") or \
                     (player_choice == "paper" and computer_choice == "rock") or \
                     (player_choice == "scissors" and computer_choice == "paper"):
-                st.write("You win!")  # Replacing print
+                st.write("You win!")
                 st.session_state.wins["user"] += 1
             else:
-                st.write("The computer wins!")  # Replacing print
+                st.write("The computer wins!")
                 st.session_state.wins["computer"] += 1
 
             # Show stats
@@ -86,17 +86,19 @@ if not st.session_state.game_over:
 
     # Ask to play again with validation (only after first play)
     if st.session_state.play_submitted and st.session_state.games > 0:
-        play_again = st.text_input("Play again? (yes/no):", "").lower()
+        play_again = st.text_input("Play again? (yes/no):", "", key="play_again").lower()
         if st.button("Submit Play Again"):
             if play_again == "yes":
-                st.session_state.play_submitted = False  # Reset for next round
+                st.session_state.play_submitted = False  # Reset immediately
+                # Clear the player_choice input by resetting its key
+                st.session_state.player_choice = ""
             elif play_again == "no":
-                st.session_state.game_over = True  # Replace exit() with flag
+                st.session_state.game_over = True
             else:
-                st.error("Invalid choice, please enter 'yes' or 'no': ")  # Replacing print
+                st.error("Invalid choice, please enter 'yes' or 'no': ")
 
 if st.session_state.game_over:
-    st.write("\nFinal Stats:")  # Replacing print
+    st.write("\nFinal Stats:")
     st.write(f"Games played: {st.session_state.games}")
     st.write(f"User wins: {st.session_state.wins['user']} "
             f"({(st.session_state.wins['user'] / st.session_state.games) * 100:.1f}%)")
@@ -107,7 +109,6 @@ if st.session_state.game_over:
     st.write("Your choices:", st.session_state.user_history)
     st.write("System's choices:", st.session_state.computer_history)
 
-    # Add reset option (Streamlit-specific addition)
     if st.button("Start New Game"):
         st.session_state.user_history = []
         st.session_state.computer_history = []
