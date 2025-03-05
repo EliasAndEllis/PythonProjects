@@ -48,37 +48,40 @@ st.write("I’ll learn your patterns and try to beat you!")
 
 if not st.session_state.game_over:
     # User choice input
-    player_choice = st.selectbox("Choose your move:", choices)
+    player_choice = st.text_input("Enter your choice (rock, paper, scissors):", "").lower()
 
     if st.button("Play"):
-        # Add to history
-        st.session_state.user_history.append(player_choice)
-        st.session_state.games += 1
-
-        # Predict and counter
-        predicted_choice = predict_user_choice(st.session_state.user_history)
-        computer_choice = get_counter_move(predicted_choice)
-        st.session_state.computer_history.append(computer_choice)
-
-        # Display computer choice
-        st.write(f"The computer chose {computer_choice}!")
-
-        # Determine winner
-        if player_choice == computer_choice:
-            st.write("It's a tie!")
-            st.session_state.wins["ties"] += 1
-        elif (player_choice == "rock" and computer_choice == "scissors") or \
-             (player_choice == "paper" and computer_choice == "rock") or \
-             (player_choice == "scissors" and computer_choice == "paper"):
-            st.write("You win!")
-            st.session_state.wins["user"] += 1
+        if player_choice not in choices:
+            st.error("Invalid choice. Please enter 'rock', 'paper', or 'scissors'.")
         else:
-            st.write("The computer wins!")
-            st.session_state.wins["computer"] += 1
+            # Add to history
+            st.session_state.user_history.append(player_choice)
+            st.session_state.games += 1
 
-        # Show current stats
-        st.write(f"Games: {st.session_state.games}, User wins: {st.session_state.wins['user']}, "
-                f"Computer wins: {st.session_state.wins['computer']}, Ties: {st.session_state.wins['ties']}")
+            # Predict and counter
+            predicted_choice = predict_user_choice(st.session_state.user_history)
+            computer_choice = get_counter_move(predicted_choice)
+            st.session_state.computer_history.append(computer_choice)
+
+            # Display computer choice
+            st.write(f"The computer chose {computer_choice}!")
+
+            # Determine winner
+            if player_choice == computer_choice:
+                st.write("It's a tie!")
+                st.session_state.wins["ties"] += 1
+            elif (player_choice == "rock" and computer_choice == "scissors") or \
+                 (player_choice == "paper" and computer_choice == "rock") or \
+                 (player_choice == "scissors" and computer_choice == "paper"):
+                st.write("You win!")
+                st.session_state.wins["user"] += 1
+            else:
+                st.write("The computer wins!")
+                st.session_state.wins["computer"] += 1
+
+            # Show current stats
+            st.write(f"Games: {st.session_state.games}, User wins: {st.session_state.wins['user']}, "
+                    f"Computer wins: {st.session_state.wins['computer']}, Ties: {st.session_state.wins['ties']}")
 
     # Play again or end game
     col1, col2 = st.columns(2)
