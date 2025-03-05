@@ -11,7 +11,7 @@ if 'wins' not in st.session_state:
     st.session_state.wins = {"user": 0, "computer": 0, "ties": 0}
 if 'play_again' not in st.session_state:
     st.session_state.play_again = True
-if 'player_choice' not in st.session_state:
+if 'player_choice' not_in st.session_state:
     st.session_state.player_choice = None
 
 def get_counter_move(predicted_choice):
@@ -57,18 +57,13 @@ st.markdown("""
     }
     .result {
         font-size: 24px;
-        color: #1DA1F2;   /* Twitter blue */
-        background-color: #AAB8C2;  /* Twitter grey */
+        color: #32CD32;   /* Original green */
         font-weight: bold;
-        padding: 5px;
-        border-radius: 5px;
     }
     .stats {
         font-size: 18px;
-        color: #FFD700;
-        background-color: #2F4F4F;
-        padding: 10px;
-        border-radius: 5px;
+        color: #1DA1F2;   /* Twitter blue */
+        font-weight: bold;
     }
     .choice-button {
         font-size: 18px;
