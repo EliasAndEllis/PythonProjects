@@ -89,8 +89,8 @@ if st.session_state.play_again:
         st.session_state.wins = wins
 
         # Ask to play again (replaces input())
-        play_again = st.text_input("Play again? (y/n)", key=f"play_again_{games}").lower()
-        if play_again == "n":
+        play_again = st.text_input("Play again? (yes/no)", key=f"play_again_{games}").lower()
+        if play_again == "no":
             st.session_state.play_again = False
 
 # Final stats when game ends
