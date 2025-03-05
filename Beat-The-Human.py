@@ -40,6 +40,8 @@ if 'game_over' not in st.session_state:
     st.session_state.game_over = False
 if 'play_submitted' not in st.session_state:
     st.session_state.play_submitted = False
+if 'player_input' not in st.session_state:
+    st.session_state.player_input = ""  # Track player input separately
 
 # Game setup
 choices = ["rock", "paper", "scissors"]
@@ -50,7 +52,9 @@ st.write("I’ll learn your patterns and try to beat you!")
 
 if not st.session_state.game_over:
     # Get user input
-    player_choice = st.text_input("Enter your choice (rock, paper, scissors):", "", key="player_choice").lower()
+    player_choice = st.text_input("Enter your choice (rock, paper, scissors):", 
+                                 value=st.session_state.player_input, 
+                                 key="player_choice").lower()
 
     if st.button("Submit Choice"):
         st.session_state.play_submitted = True
@@ -89,9 +93,8 @@ if not st.session_state.game_over:
         play_again = st.text_input("Play again? (yes/no):", "", key="play_again").lower()
         if st.button("Submit Play Again"):
             if play_again == "yes":
-                st.session_state.play_submitted = False  # Reset immediately
-                # Clear the player_choice input by resetting its key
-                st.session_state.player_choice = ""
+                st.session_state.play_submitted = False  # Reset for next round
+                st.session_state.player_input = ""  # Clear the player input
             elif play_again == "no":
                 st.session_state.game_over = True
             else:
@@ -116,3 +119,4 @@ if st.session_state.game_over:
         st.session_state.wins = {"user": 0, "computer": 0, "ties": 0}
         st.session_state.game_over = False
         st.session_state.play_submitted = False
+        st.session_state.player_input = ""
