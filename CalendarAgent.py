@@ -23,33 +23,44 @@ def authenticate_google_calendar():
         )
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-            st.session_state['credentials'] = creds.to_json()
-        else:
-            # Use the app's deployed URL as the redirect URI
-            redirect_uri = f"{st.secrets['app_url']}/" if 'app_url' in st.secrets else "https://your-app-name.streamlit.app/"
-            flow = Flow.from_client_config(
-                {
-                    "web": {
-                        "client_id": st.secrets["google"]["client_id"],
-                        "client_secret": st.secrets["google"]["client_secret"],
-                        "redirect_uris": [redirect_uri],
-                        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                        "token_uri": "https://oauth2.googleapis.com/token"
-                    }
-                },
-                SCOPES
-            )
-            auth_url, state = flow.authorization_url(prompt='consent')
-            st.session_state['oauth_state'] = state
-            st.write(f"Please go to this URL to authorize the app: [{auth_url}]({auth_url})")
-            code = st.text_input("Enter the authorization code from the URL:")
-            if code:
-                # Manually fetch token using the code
-                flow.fetch_token(code=code)
-                creds = flow.credentials
+            try:
+                creds.refresh(Request())
                 st.session_state['credentials'] = creds.to_json()
-                st.success("Authentication successful! You can now create events.")
+                st.success("Credentials refreshed successfully.")
+            except Exception as e:
+                st.error(f"Error refreshing credentials: {e}")
+        else:
+            # Use secrets for client config
+            redirect_uri = "https://calendaragent.streamlit.app"  # Full URL for clarity
+            client_config = {
+                "web": {
+                    "client_id": st.secrets["google"]["client_id"],
+                    "client_secret": st.secrets["google"]["client_secret"],
+                    "redirect_uris": [redirect_uri],
+                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                    "token_uri": "https://oauth2.googleapis.com/token"
+                }
+            }
+            flow = Flow.from_client_config(client_config, SCOPES)
+            auth_url, state = flow.authorization_url(
+                prompt='consent',
+                redirect_uri=redirect_uri,
+                access_type='offline'  # Ensures refresh token is included
+            )
+            st.session_state['oauth_state'] = state
+            st.write(f"Redirect URI set to: {redirect_uri}")
+            st.write(f"Please go to this URL to authorize the app: [{auth_url}]({auth_url})")
+            st.write("After authorizing, copy the code from the URL and paste it below.")
+            code = st.text_input("Enter the authorization code:", key="auth_code")
+            if code:
+                try:
+                    flow.fetch_token(code=code)
+                    creds = flow.credentials
+                    st.session_state['credentials'] = creds.to_json()
+                    st.success("Authentication successful! You can now create events.")
+                except Exception as e:
+                    st.error(f"Error fetching token: {e}")
+                    st.write(f"Attempted code: {code}")
     if creds and creds.valid:
         return build('calendar', 'v3', credentials=creds)
     return None
