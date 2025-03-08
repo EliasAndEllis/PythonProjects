@@ -31,7 +31,7 @@ def authenticate_google_calendar():
                 st.error(f"Error refreshing credentials: {e}")
         else:
             # Use secrets for client config
-            redirect_uri = "https://calendaragent.streamlit.app"  # Full URL for clarity
+            redirect_uri = "calendaragent.streamlit.app"  # Scheme-less to match Google Cloud
             client_config = {
                 "web": {
                     "client_id": st.secrets["google"]["client_id"],
