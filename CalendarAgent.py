@@ -26,12 +26,14 @@ def authenticate_google_calendar():
             creds.refresh(Request())
             st.session_state['credentials'] = creds.to_json()
         else:
+            # Use the app's deployed URL as the redirect URI
+            redirect_uri = f"{st.secrets['app_url']}/" if 'app_url' in st.secrets else "https://your-app-name.streamlit.app/"
             flow = Flow.from_client_config(
                 {
                     "web": {
                         "client_id": st.secrets["google"]["client_id"],
                         "client_secret": st.secrets["google"]["client_secret"],
-                        "redirect_uris": st.secrets["google"]["redirect_uris"],
+                        "redirect_uris": [redirect_uri],
                         "auth_uri": "https://accounts.google.com/o/oauth2/auth",
                         "token_uri": "https://oauth2.googleapis.com/token"
                     }
@@ -43,6 +45,7 @@ def authenticate_google_calendar():
             st.write(f"Please go to this URL to authorize the app: [{auth_url}]({auth_url})")
             code = st.text_input("Enter the authorization code from the URL:")
             if code:
+                # Manually fetch token using the code
                 flow.fetch_token(code=code)
                 creds = flow.credentials
                 st.session_state['credentials'] = creds.to_json()
