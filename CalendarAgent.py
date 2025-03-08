@@ -30,8 +30,8 @@ def authenticate_google_calendar():
             except Exception as e:
                 st.error(f"Error refreshing credentials: {e}")
         else:
-            # Use secrets for client config
-            redirect_uri = "calendaragent.streamlit.app"  # Scheme-less to match Google Cloud
+            # Use full URL for redirect_uri
+            redirect_uri = "https://calendaragent.streamlit.app"
             client_config = {
                 "web": {
                     "client_id": st.secrets["google"]["client_id"],
@@ -45,7 +45,7 @@ def authenticate_google_calendar():
             auth_url, state = flow.authorization_url(
                 prompt='consent',
                 redirect_uri=redirect_uri,
-                access_type='offline'  # Ensures refresh token is included
+                access_type='offline'
             )
             st.session_state['oauth_state'] = state
             st.write(f"Redirect URI set to: {redirect_uri}")
