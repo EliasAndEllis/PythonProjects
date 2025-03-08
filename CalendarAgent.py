@@ -1,9 +1,8 @@
 import streamlit as st
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
+from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from google.auth.transport.requests import Request
-import os
 from dateutil import parser
 import datetime
 
@@ -22,28 +21,55 @@ TIMEZONE_MAP = {
 VALID_COLOR_IDS = [str(i) for i in range(1, 12)]  # "1" to "11"
 
 def authenticate_google_calendar():
-    """Authenticate with Google Calendar API and return the service object."""
+    """Authenticate with Google Calendar API using Streamlit secrets."""
     creds = None
-    if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+    # Check if credentials are stored in session state
+    if 'credentials' in st.session_state:
+        creds = Credentials.from_authorized_user_info(
+            st.session_state['credentials'], SCOPES
+        )
+    
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
+            st.session_state['credentials'] = creds.to_json()
         else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', SCOPES)
-            creds = flow.run_local_server(port=0)
-        with open('token.json', 'w') as token:
-            token.write(creds.to_json())
-    service = build('calendar', 'v3', credentials=creds)
-    return service
+            # Configure OAuth flow using secrets
+            flow = Flow.from_client_config(
+                {
+                    "web": {
+                        "client_id": st.secrets["google"]["client_id"],
+                        "client_secret": st.secrets["google"]["client_secret"],
+                        "redirect_uris": st.secrets["google"]["redirect_uris"],
+                        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                        "token_uri": "https://oauth2.googleapis.com/token"
+                    }
+                },
+                SCOPES
+            )
+            # Generate authorization URL
+            auth_url, state = flow.authorization_url(prompt='consent')
+            st.session_state['oauth_state'] = state
+            
+            st.write(f"Please go to this URL to authorize the app: [{auth_url}]({auth_url})")
+            code = st.text_input("Enter the authorization code from the URL:")
+            
+            if code:
+                flow.fetch_token(code=code)
+                creds = flow.credentials
+                st.session_state['credentials'] = creds.to_json()
+                st.success("Authentication successful! You can now create events.")
+    
+    if creds and creds.valid:
+        return build('calendar', 'v3', credentials=creds)
+    return None
 
 def parse_input(user_input):
-    """Parse space-separated input with numeric color IDs."""
+    """Parse user input for event details."""
     tokens = user_input.lower().strip().split()
     if len(tokens) < 2:
-        raise ValueError("Please include at least a date/time and something else (e.g., '03/17 12pm stonemasons')")
-    
+        raise ValueError("Please include at least a date/time and title (e.g., '03/17 12pm meeting')")
+
     # Extract timezone
     timezone = "America/Toronto"  # Default
     timezone_words = []
@@ -53,7 +79,7 @@ def parse_input(user_input):
             timezone = tz_value
             timezone_words = tz_parts
             break
-    
+
     # Extract color ID
     color_id = None
     for i, token in enumerate(tokens):
@@ -61,12 +87,12 @@ def parse_input(user_input):
             color_id = token
             tokens.pop(i)
             break
-    
+
     # Remove timezone tokens
     for word in timezone_words:
         if word in tokens:
             tokens.remove(word)
-    
+
     # Parse date and time
     date_time_str = ""
     for i, token in enumerate(tokens):
@@ -77,16 +103,16 @@ def parse_input(user_input):
             break
         except ValueError:
             continue
-    
+
     if not date_time_str:
-        raise ValueError("Couldn’t find a valid date (e.g., '03/17').")
+        raise ValueError("Couldn’t find a valid date (e.g., '03/17')")
     if i < len(tokens) - 1:
         try:
             dt = parser.parse(f"{date_time_str} {tokens[i]}", fuzzy=True, dayfirst=False)
             date_time_str = f"{date_time_str} {tokens.pop(i)}"
         except ValueError:
             pass
-    
+
     try:
         dt = parser.parse(date_time_str, fuzzy=True, dayfirst=False)
         if dt.year == datetime.datetime.now().year and date_time_str.lower() not in [str(datetime.datetime.now().year), str(datetime.datetime.now().year)[2:]]:
@@ -94,14 +120,14 @@ def parse_input(user_input):
         if dt < datetime.datetime.now():
             dt = dt.replace(year=datetime.datetime.now().year + 1)
     except ValueError:
-        raise ValueError("Couldn’t parse date and time (e.g., '03/17 12pm').")
-    
+        raise ValueError("Couldn’t parse date and time (e.g., '03/17 12pm')")
+
     start_datetime = dt if dt.time() != datetime.time(0, 0) else dt.replace(hour=9, minute=0)
     end_datetime = start_datetime + datetime.timedelta(hours=1)
-    
+
     # Remaining tokens are the title
     title = ' '.join(tokens) or "Untitled Meeting"
-    
+
     return {
         'summary': title,
         'start': start_datetime.isoformat(),
@@ -125,87 +151,23 @@ def create_calendar_event(service, event_details):
         'colorId': event_details['colorId'],
     }
     event = service.events().insert(calendarId='primary', body=event).execute()
-    return event['id'], event.get('htmlLink')
+    return event.get('htmlLink')
 
-def list_recent_events(service, num_events=5):
-    """List recent events with their IDs."""
-    now = datetime.datetime.utcnow().isoformat() + 'Z'
-    events_result = service.events().list(
-        calendarId='primary',
-        timeMin=now,
-        maxResults=num_events,
-        singleEvents=True,
-        orderBy='startTime'
-    ).execute()
-    return events_result.get('items', [])
+# Streamlit UI
+st.title("Google Calendar Event Creator")
 
-def modify_calendar_event(service, event_id, event_details):
-    """Modify an existing event on Google Calendar."""
-    event = {
-        'summary': event_details['summary'],
-        'start': {
-            'dateTime': event_details['start'],
-            'timeZone': event_details['timezone'],
-        },
-        'end': {
-            'dateTime': event_details['end'],
-            'timeZone': event_details['timezone'],
-        },
-        'colorId': event_details['colorId'],
-    }
-    updated_event = service.events().patch(
-        calendarId='primary',
-        eventId=event_id,
-        body=event
-    ).execute()
-    return updated_event.get('htmlLink')
+# Authenticate
+service = authenticate_google_calendar()
 
-def main():
-    st.title("Google Calendar AI Agent")
-
-    # Authenticate once and store in session state
-    if 'service' not in st.session_state:
-        st.session_state.service = authenticate_google_calendar()
-
-    # Action selection
-    action = st.radio("Choose Action", ["Create Event", "Modify Event"])
-
-    if action == "Create Event":
-        st.subheader("Create a New Event")
-        user_input = st.text_input(
-            "Enter meeting details (e.g., '03/17 12pm toronto time stonemasons 1')",
-            key="create_input"
-        )
-        if st.button("Create Event"):
-            if user_input:
-                try:
-                    event_details = parse_input(user_input)
-                    event_id, event_link = create_calendar_event(st.session_state.service, event_details)
-                    st.success(f"Event created: {event_link}")
-                    st.write(f"Event ID: {event_id} (save this for future reference)")
-                except ValueError as e:
-                    st.error(f"Error: {e}")
-            else:
-                st.warning("Please enter event details.")
-
-    elif action == "Modify Event":
-        st.subheader("Modify an Existing Event")
-        events = list_recent_events(st.session_state.service)
-        
-        if not events:
-            st.write("No upcoming events found.")
-        else:
-            # Display events in a selectable format
-            event_options = [
-                f"{event['summary']} - {event['start'].get('dateTime', event['start'].get('date'))} (ID: {event['id']})"
-                for event in events
-            ]
-            selected_event = st.selectbox("Select an event to modify", event_options)
-            if selected_event:
-                event_id = selected_event.split("ID: ")[1][:-1]  # Extract ID
-                new_input = st.text_input(
-                    "Enter new details (e.g., '03/18 2pm toronto time painters 5')",
-                    key="modify_input"
-                )
-                if st.button("Modify Event"):
-...
+if service:
+    # Event creation form
+    user_input = st.text_input("Enter event details (e.g., '03/17 12pm toronto time meeting 1')")
+    if st.button("Create Event"):
+        try:
+            event_details = parse_input(user_input)
+            event_link = create_calendar_event(service, event_details)
+            st.success(f"Event created! [View it here]({event_link})")
+        except ValueError as e:
+            st.error(f"Error: {e}")
+else:
+    st.warning("Please authenticate to create events.")
