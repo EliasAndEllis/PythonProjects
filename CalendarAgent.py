@@ -6,35 +6,26 @@ from google.auth.transport.requests import Request
 from dateutil import parser
 import datetime
 
-# Scopes for Google Calendar API
 SCOPES = ['https://www.googleapis.com/auth/calendar']
-
-# Timezone mapping
 TIMEZONE_MAP = {
     "toronto time": "America/Toronto",
     "new york time": "America/New_York",
     "london time": "Europe/London",
     "tokyo time": "Asia/Tokyo",
 }
-
-# Valid color IDs (1-11)
-VALID_COLOR_IDS = [str(i) for i in range(1, 12)]  # "1" to "11"
+VALID_COLOR_IDS = [str(i) for i in range(1, 12)]
 
 def authenticate_google_calendar():
-    """Authenticate with Google Calendar API using Streamlit secrets."""
     creds = None
-    # Check if credentials are stored in session state
     if 'credentials' in st.session_state:
         creds = Credentials.from_authorized_user_info(
             st.session_state['credentials'], SCOPES
         )
-    
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
             st.session_state['credentials'] = creds.to_json()
         else:
-            # Configure OAuth flow using secrets
             flow = Flow.from_client_config(
                 {
                     "web": {
@@ -47,31 +38,24 @@ def authenticate_google_calendar():
                 },
                 SCOPES
             )
-            # Generate authorization URL
             auth_url, state = flow.authorization_url(prompt='consent')
             st.session_state['oauth_state'] = state
-            
             st.write(f"Please go to this URL to authorize the app: [{auth_url}]({auth_url})")
             code = st.text_input("Enter the authorization code from the URL:")
-            
             if code:
                 flow.fetch_token(code=code)
                 creds = flow.credentials
                 st.session_state['credentials'] = creds.to_json()
                 st.success("Authentication successful! You can now create events.")
-    
     if creds and creds.valid:
         return build('calendar', 'v3', credentials=creds)
     return None
 
 def parse_input(user_input):
-    """Parse user input for event details."""
     tokens = user_input.lower().strip().split()
     if len(tokens) < 2:
         raise ValueError("Please include at least a date/time and title (e.g., '03/17 12pm meeting')")
-
-    # Extract timezone
-    timezone = "America/Toronto"  # Default
+    timezone = "America/Toronto"
     timezone_words = []
     for tz_name, tz_value in TIMEZONE_MAP.items():
         tz_parts = tz_name.split()
@@ -79,21 +63,15 @@ def parse_input(user_input):
             timezone = tz_value
             timezone_words = tz_parts
             break
-
-    # Extract color ID
     color_id = None
     for i, token in enumerate(tokens):
         if token in VALID_COLOR_IDS:
             color_id = token
             tokens.pop(i)
             break
-
-    # Remove timezone tokens
     for word in timezone_words:
         if word in tokens:
             tokens.remove(word)
-
-    # Parse date and time
     date_time_str = ""
     for i, token in enumerate(tokens):
         try:
@@ -103,7 +81,6 @@ def parse_input(user_input):
             break
         except ValueError:
             continue
-
     if not date_time_str:
         raise ValueError("Couldn’t find a valid date (e.g., '03/17')")
     if i < len(tokens) - 1:
@@ -112,7 +89,6 @@ def parse_input(user_input):
             date_time_str = f"{date_time_str} {tokens.pop(i)}"
         except ValueError:
             pass
-
     try:
         dt = parser.parse(date_time_str, fuzzy=True, dayfirst=False)
         if dt.year == datetime.datetime.now().year and date_time_str.lower() not in [str(datetime.datetime.now().year), str(datetime.datetime.now().year)[2:]]:
@@ -121,13 +97,9 @@ def parse_input(user_input):
             dt = dt.replace(year=datetime.datetime.now().year + 1)
     except ValueError:
         raise ValueError("Couldn’t parse date and time (e.g., '03/17 12pm')")
-
     start_datetime = dt if dt.time() != datetime.time(0, 0) else dt.replace(hour=9, minute=0)
     end_datetime = start_datetime + datetime.timedelta(hours=1)
-
-    # Remaining tokens are the title
     title = ' '.join(tokens) or "Untitled Meeting"
-
     return {
         'summary': title,
         'start': start_datetime.isoformat(),
@@ -137,30 +109,18 @@ def parse_input(user_input):
     }
 
 def create_calendar_event(service, event_details):
-    """Create an event on Google Calendar."""
     event = {
         'summary': event_details['summary'],
-        'start': {
-            'dateTime': event_details['start'],
-            'timeZone': event_details['timezone'],
-        },
-        'end': {
-            'dateTime': event_details['end'],
-            'timeZone': event_details['timezone'],
-        },
+        'start': {'dateTime': event_details['start'], 'timeZone': event_details['timezone']},
+        'end': {'dateTime': event_details['end'], 'timeZone': event_details['timezone']},
         'colorId': event_details['colorId'],
     }
     event = service.events().insert(calendarId='primary', body=event).execute()
     return event.get('htmlLink')
 
-# Streamlit UI
 st.title("Google Calendar Event Creator")
-
-# Authenticate
 service = authenticate_google_calendar()
-
 if service:
-    # Event creation form
     user_input = st.text_input("Enter event details (e.g., '03/17 12pm toronto time meeting 1')")
     if st.button("Create Event"):
         try:
