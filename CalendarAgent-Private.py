@@ -129,4 +129,151 @@ def parse_input(user_input):
         'colorId': color_id
     }
 
-def check_for_duplicate(service, event_details
+def check_for_duplicate(service, event_details):
+    """Check if an event with the same normalized title, date, and time exists."""
+    now = datetime.datetime.utcnow().isoformat() + 'Z'
+    end_of_next_year = datetime.datetime(datetime.datetime.now().year + 1, 12, 31, 23, 59, 59).isoformat() + 'Z'
+
+    events_result = service.events().list(
+        calendarId='primary',
+        timeMin=now,
+        timeMax=end_of_next_year,
+        q=event_details['summary'],  # Search by raw title
+        singleEvents=True,
+        orderBy='startTime'
+    ).execute()
+    events = events_result.get('items', [])
+
+    tz = pytz.timezone(event_details['timezone'])
+    new_start_dt_naive = datetime.datetime.fromisoformat(event_details['start'].replace('Z', '+00:00'))
+    new_start_dt = tz.localize(new_start_dt_naive)
+    new_title_normalized = normalize_title(event_details['summary'])
+
+    for event in events:
+        existing_start = event['start'].get('dateTime', event['start'].get('date'))
+        existing_dt = datetime.datetime.fromisoformat(existing_start.replace('Z', '+00:00'))
+        if existing_dt.tzinfo is None:
+            existing_dt = pytz.UTC.localize(existing_dt)
+        
+        existing_title_normalized = normalize_title(event['summary'])
+        
+        if (existing_title_normalized == new_title_normalized and
+            abs((existing_dt - new_start_dt).total_seconds()) < 60):
+            print(f"Debug: Duplicate found - Existing: {event['summary']} at {existing_start}, New: {event_details['summary']} at {new_start_dt}")
+            return True
+    print(f"Debug: No duplicate found for '{event_details['summary']}' at {new_start_dt}")
+    return False
+
+def create_calendar_event(service, event_details):
+    """Create an event on Google Calendar if it doesn’t already exist."""
+    if check_for_duplicate(service, event_details):
+        print(f"Event '{event_details['summary']}' at {event_details['start']} already exists.")
+        return None
+    
+    event = {
+        'summary': event_details['summary'],
+        'start': {
+            'dateTime': event_details['start'],
+            'timeZone': event_details['timezone'],
+        },
+        'end': {
+            'dateTime': event_details['end'],
+            'timeZone': event_details['timezone'],
+        },
+        'colorId': event_details['colorId'],
+    }
+    event = service.events().insert(calendarId='primary', body=event).execute()
+    print(f"Event created: {event.get('htmlLink')}")
+    return event['id']
+
+def list_recent_events(service, num_events=5):
+    """List recent events with their IDs."""
+    now = datetime.datetime.utcnow().isoformat() + 'Z'
+    events_result = service.events().list(
+        calendarId='primary',
+        timeMin=now,
+        maxResults=num_events,
+        singleEvents=True,
+        orderBy='startTime'
+    ).execute()
+    events = events_result.get('items', [])
+    
+    if not events:
+        print("No upcoming events found.")
+        return None
+    
+    print("\nRecent Events:")
+    for i, event in enumerate(events, 1):
+        start = event['start'].get('dateTime', event['start'].get('date'))
+        print(f"{i}. {event['summary']} - {start} (ID: {event['id']})")
+    return events
+
+def modify_calendar_event(service, event_id, event_details):
+    """Modify an existing event on Google Calendar."""
+    event = {
+        'summary': event_details['summary'],
+        'start': {
+            'dateTime': event_details['start'],
+            'timeZone': event_details['timezone'],
+        },
+        'end': {
+            'dateTime': event_details['end'],
+            'timeZone': event_details['timezone'],
+        },
+        'colorId': event_details['colorId'],
+    }
+    updated_event = service.events().patch(
+        calendarId='primary',
+        eventId=event_id,
+        body=event
+    ).execute()
+    print(f"Event updated: {updated_event.get('htmlLink')}")
+
+def main():
+    service = authenticate_google_calendar()
+    
+    while True:
+        action = input("\nChoose action: 'create', 'modify', or 'exit': ").lower()
+        
+        if action == 'exit':
+            print("Goodbye!")
+            break
+        
+        elif action == 'create':
+            user_input = input("Enter meeting details (e.g., '03/17 12pm toronto time roofers meeting'): ")
+            try:
+                event_details = parse_input(user_input)
+                event_id = create_calendar_event(service, event_details)
+                if event_id:
+                    print(f"Event ID: {event_id} (save this to modify later)")
+            except ValueError as e:
+                print(f"Error: {e}")
+        
+        elif action == 'modify':
+            events = list_recent_events(service)
+            if not events:
+                continue
+            
+            choice = input("Enter the number of the event to modify (1-5) or 'back' to return: ")
+            if choice.lower() == 'back':
+                continue
+            try:
+                event_index = int(choice) - 1
+                if 0 <= event_index < len(events):
+                    event_id = events[event_index]['id']
+                    new_input = input("Enter new details (e.g., '03/18 2pm toronto time painters'): ")
+                    try:
+                        event_details = parse_input(new_input)
+                        modify_calendar_event(service, event_id, event_details)
+                    except ValueError as e:
+                        print(f"Error: {e}")
+                else:
+                    print("Invalid event number.")
+            except ValueError:
+                print("Please enter a valid number or 'back'.")
+        
+        else:
+            print("Event already exists. Choose 'create', 'modify', or 'exit'.")
+
+if __name__ == '__main__':
+    main()
