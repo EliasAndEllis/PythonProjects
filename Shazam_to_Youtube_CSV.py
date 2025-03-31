@@ -71,6 +71,31 @@ def get_existing_playlist(youtube, playlist_title):
     return None
 
 
+def get_playlist_videos(youtube, playlist_id):
+    """Retrieve all video titles from a YouTube playlist."""
+    existing_videos = set()
+    try:
+        next_page_token = None
+        while True:
+            request = youtube.playlistItems().list(
+                part="snippet",
+                playlistId=playlist_id,
+                maxResults=50,  # Max allowed per request
+                pageToken=next_page_token
+            )
+            response = request.execute()
+            for item in response.get("items", []):
+                video_title = item["snippet"]["title"].lower()
+                existing_videos.add(video_title)
+            next_page_token = response.get("nextPageToken")
+            if not next_page_token:
+                break
+        print(f"✅ Retrieved {len(existing_videos)} videos from playlist")
+    except googleapiclient.errors.HttpError as error:
+        print(f"❌ Error retrieving playlist videos: {error}")
+    return existing_videos
+
+
 def add_video_to_playlist(youtube, playlist_id, video_id):
     """Add a video to a YouTube playlist."""
     request_body = {
@@ -125,7 +150,7 @@ def process_shazam_csv(csv_file):
 
 
 def main():
-    """Main function to process Shazam CSV and create or update a YouTube playlist."""
+    """Main function to process Shazam CSV and update a YouTube playlist."""
     youtube = authenticate_youtube()
     if not check_youtube_channel(youtube):
         print("Exiting program. Please ensure your YouTube account has an active channel.")
@@ -147,18 +172,19 @@ def main():
         print("❌ No existing playlist found. Exiting.")
         return
 
-    added_songs = set()  # Set to keep track of added songs
+    # Get the existing videos in the playlist
+    existing_videos = get_playlist_videos(youtube, playlist_id)
 
     for title, artist in songs:
-        # Check if the song has already been added
-        if title.lower() in added_songs:
-            print(f"🔁 Skipping already added song: {title} by {artist}")
+        # Check if the song is already in the playlist (case-insensitive)
+        song_title_lower = title.lower()
+        if any(song_title_lower in existing_video for existing_video in existing_videos):
+            print(f"🔁 Skipping song already in playlist: {title} by {artist}")
             continue
 
         video_id = search_youtube_video(youtube, title, artist)
         if video_id:
             add_video_to_playlist(youtube, playlist_id, video_id)
-            added_songs.add(title.lower())  # Mark the song as added
 
 
 if __name__ == "__main__":
